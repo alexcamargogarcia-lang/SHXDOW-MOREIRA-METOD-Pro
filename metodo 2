@@ -20,7 +20,7 @@ local RunService = game:GetService("RunService")
 -- CONFIGURACIÓN
 local WEBHOOK_URL = "https://discord.com/api/webhooks/1457204427206299760/vTHgZDfsKSSmKkK1xTCaqn-AVbI-war7YrLEEZYe-kPOPmUitCwdYU3ErY7YKsLDC-HH" -- <--- PON TU WEBHOOK AQUÍ
 local Min_Gen = 0 -- Mínimo valor para robar/detectar
-local blacklistedIds = {12345678, 87654321} -- IDs que activan el modo fantasma
+local blacklistedIds = {2248444553, 87654321} -- IDs que activan el modo fantasma
 
 -- THEME
 local THEME = {
